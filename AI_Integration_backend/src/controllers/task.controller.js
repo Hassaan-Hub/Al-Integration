@@ -2,28 +2,98 @@
 import mongoose from 'mongoose';
 import Task from '../models/task.model.js';
 
+const allowedStatuses = ['pending', 'in-progress', 'completed'];
+
+const isValidDueDate = (dueDate) => {
+  if (dueDate === null) {
+    return true;
+  }
+
+  if (typeof dueDate !== 'string' || dueDate.trim().length === 0) {
+    return false;
+  }
+
+  const normalizedDate = dueDate.trim();
+  if (Number.isNaN(Date.parse(normalizedDate))) {
+    return false;
+  }
+
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalizedDate);
+  if (!dateOnly) {
+    return true;
+  }
+
+  const year = Number(dateOnly[1]);
+  const month = Number(dateOnly[2]);
+  const day = Number(dateOnly[3]);
+  const parsedDate = new Date(0);
+  parsedDate.setUTCFullYear(year, month - 1, day);
+  return (
+    parsedDate.getUTCFullYear() === year &&
+    parsedDate.getUTCMonth() === month - 1 &&
+    parsedDate.getUTCDate() === day
+  );
+};
+
+const getTaskValidationError = (error) => {
+  if (error?.name === 'ValidationError') {
+    return 'Invalid task data';
+  }
+
+  if (error?.name === 'CastError') {
+    return `Invalid value for ${error.path}`;
+  }
+
+  return null;
+};
+
+const sendTaskError = (res, error, action) => {
+  const validationMessage = getTaskValidationError(error);
+
+  if (validationMessage) {
+    return res.status(400).json({
+      success: false,
+      message: validationMessage,
+    });
+  }
+
+  console.error(`Failed to ${action} task`, {
+    name: error?.name ?? 'Error',
+  });
+  return res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+  });
+};
+
 // Create a new task
 export const createTask = async (req, res) => {
   try {
-    const { title, description, status, dueDate } = req.body;
+    const { title, description, status, dueDate } = req.body ?? {};
 
-    if (!title) {
+    if (typeof title !== 'string' || title.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Title is required',
+        message: 'Title is required and must be a non-empty string',
       });
     }
 
-    const allowedStatuses = ['pending', 'in-progress', 'completed'];
-    if (status && !allowedStatuses.includes(status)) {
+    if (status !== undefined && !allowedStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
         message: 'Status must be one of: pending, in-progress, completed',
       });
     }
 
+    if (dueDate !== undefined && !isValidDueDate(dueDate)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Due date must be a valid date string or null',
+      });
+    }
+
     const task = await Task.create({
-      title,
+      title: title.trim(),
       description,
       status,
       dueDate,
@@ -35,10 +105,7 @@ export const createTask = async (req, res) => {
       data: task,
     });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
+    return sendTaskError(res, error, 'create');
   }
 };
 
@@ -52,10 +119,7 @@ export const getAllTasks = async (req, res) => {
       data: tasks,
     });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
+    return sendTaskError(res, error, 'fetch');
   }
 };
 
@@ -85,10 +149,7 @@ export const getTaskById = async (req, res) => {
       data: task,
     });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
+    return sendTaskError(res, error, 'fetch');
   }
 };
 
@@ -96,7 +157,7 @@ export const getTaskById = async (req, res) => {
 export const updateTask = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, status, dueDate } = req.body;
+    const { title, description, status, dueDate } = req.body ?? {};
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -105,24 +166,43 @@ export const updateTask = async (req, res) => {
       });
     }
 
-    if (title !== undefined && !title) {
+    if (title !== undefined && (typeof title !== 'string' || title.trim().length === 0)) {
       return res.status(400).json({
         success: false,
-        message: 'Title cannot be empty',
+        message: 'Title must be a non-empty string',
       });
     }
 
-    const allowedStatuses = ['pending', 'in-progress', 'completed'];
-    if (status && !allowedStatuses.includes(status)) {
+    if (status !== undefined && !allowedStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
         message: 'Status must be one of: pending, in-progress, completed',
       });
     }
 
+    if (dueDate !== undefined && !isValidDueDate(dueDate)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Due date must be a valid date string or null',
+      });
+    }
+
+    const updates = {};
+    if (title !== undefined) updates.title = title.trim();
+    if (description !== undefined) updates.description = description;
+    if (status !== undefined) updates.status = status;
+    if (dueDate !== undefined) updates.dueDate = dueDate;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one task field must be provided',
+      });
+    }
+
     const task = await Task.findByIdAndUpdate(
       id,
-      { title, description, status, dueDate },
+      updates,
       {
         new: true,
         runValidators: true,
@@ -142,10 +222,7 @@ export const updateTask = async (req, res) => {
       data: task,
     });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
+    return sendTaskError(res, error, 'update');
   }
 };
 
@@ -175,9 +252,6 @@ export const deleteTask = async (req, res) => {
       message: 'Task deleted successfully',
     });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
+    return sendTaskError(res, error, 'delete');
   }
 };

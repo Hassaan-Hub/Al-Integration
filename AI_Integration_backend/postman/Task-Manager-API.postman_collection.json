@@ -1,0 +1,448 @@
+{
+  "info": {
+    "_postman_id": "0e550047-684d-46b1-bf58-2bd9084c9209",
+    "name": "Task Manager API",
+    "description": "Manual requests for the Task Manager API. The default baseUrl targets localhost. Start the API and configure MongoDB before running task requests. AI planning requires a configured Groq key, supported model, and available quota.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/health-check",
+        "description": "Checks that the API process is responding."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Returns HTTP 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Returns a healthy JSON response', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.success).to.eql(true);",
+              "  pm.expect(body.status).to.eql('ok');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create task",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Prepare project demo\",\n  \"description\": \"Review the Task Manager API before a project demonstration.\",\n  \"status\": \"pending\",\n  \"dueDate\": \"2026-12-31\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/tasks",
+        "description": "Creates a task and saves data._id into the collection variable taskId for the retrieve, update, and delete requests. Uses the local API by default."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Returns HTTP 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "pm.test('Returns a created task and captures its ID', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.success).to.eql(true);",
+              "  pm.expect(body.data).to.be.an('object');",
+              "  pm.expect(body.data._id).to.be.a('string').and.not.empty;",
+              "  pm.collectionVariables.set('taskId', body.data._id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List tasks",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/tasks",
+        "description": "Lists tasks using the route without a trailing slash."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Returns HTTP 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Returns a task list with count', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.success).to.eql(true);",
+              "  pm.expect(body.count).to.be.a('number');",
+              "  pm.expect(body.data).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List tasks (trailing slash)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/tasks/",
+        "description": "Verifies the list route with a trailing slash."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Returns HTTP 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Returns a task list with count', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.success).to.eql(true);",
+              "  pm.expect(body.count).to.be.a('number');",
+              "  pm.expect(body.data).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Retrieve created task",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}",
+        "description": "Run after Create task so taskId has been captured."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Returns HTTP 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Returns the requested task', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.success).to.eql(true);",
+              "  pm.expect(body.data).to.be.an('object');",
+              "  pm.expect(body.data._id).to.eql(pm.collectionVariables.get('taskId'));",
+              "  pm.expect(body.data.title).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update created task",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Prepare project demo - reviewed\",\n  \"description\": \"Review the Task Manager API before a project demonstration.\",\n  \"status\": \"in-progress\",\n  \"dueDate\": \"2026-12-31\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}",
+        "description": "Updates the task created by this collection. Run after Create task."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Returns HTTP 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Returns the updated task', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.success).to.eql(true);",
+              "  pm.expect(body.data._id).to.eql(pm.collectionVariables.get('taskId'));",
+              "  pm.expect(body.data.status).to.eql('in-progress');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete created task",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}",
+        "description": "Destructive: deletes the task created by this collection. Defaults to localhost; run only against your intended local development database, after Create task."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Returns HTTP 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Confirms task deletion', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.success).to.eql(true);",
+              "  pm.expect(body.message).to.eql('Task deleted successfully');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invalid MongoDB ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/tasks/not-a-valid-object-id",
+        "description": "Validation-only request; does not access or modify a task record."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Returns HTTP 400', function () {",
+              "  pm.response.to.have.status(400);",
+              "});",
+              "pm.test('Reports an invalid task ID', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.success).to.eql(false);",
+              "  pm.expect(body.message).to.eql('Invalid task ID');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Missing task title",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"This request intentionally omits the required title.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/tasks",
+        "description": "Validation-only request; should be rejected without creating a task."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Returns HTTP 400', function () {",
+              "  pm.response.to.have.status(400);",
+              "});",
+              "pm.test('Explains that a title is required', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.success).to.eql(false);",
+              "  pm.expect(body.message).to.include('Title');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invalid task status",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Invalid status validation test\",\n  \"status\": \"blocked\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/tasks",
+        "description": "Validation-only request; should be rejected without creating a task."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Returns HTTP 400', function () {",
+              "  pm.response.to.have.status(400);",
+              "});",
+              "pm.test('Explains the allowed statuses', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.success).to.eql(false);",
+              "  pm.expect(body.message).to.include('pending');",
+              "  pm.expect(body.message).to.include('in-progress');",
+              "  pm.expect(body.message).to.include('completed');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Missing AI description",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"   \"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/ai/plan-task",
+        "description": "Validation-only request; it should return 400 without calling Groq."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Returns HTTP 400', function () {",
+              "  pm.response.to.have.status(400);",
+              "});",
+              "pm.test('Reports the required description', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.success).to.eql(false);",
+              "  pm.expect(body.message).to.include('Description');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI task planning (provider may be unavailable)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"Plan the steps to prepare a short project demonstration.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/ai/plan-task",
+        "description": "Requires Groq configuration and available quota. The test accepts either a valid plan or a recognized configuration/provider error; it does not assume the AI call will succeed."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Returns a successful plan or a recognized provider/configuration error', function () {",
+              "  pm.expect([200, 429, 500, 502, 503]).to.include(pm.response.code);",
+              "  const body = pm.response.json();",
+              "  if (pm.response.code === 200) {",
+              "    pm.expect(body.success).to.eql(true);",
+              "    pm.expect(body.plan.summary).to.be.a('string').and.not.empty;",
+              "    pm.expect(['low', 'medium', 'high']).to.include(body.plan.priority);",
+              "    pm.expect(body.plan.estimatedHours).to.be.a('number').and.above(0);",
+              "    pm.expect(body.plan.steps).to.be.an('array').that.is.not.empty;",
+              "    body.plan.steps.forEach(function (step) {",
+              "      pm.expect(step).to.be.a('string').and.not.empty;",
+              "    });",
+              "  } else {",
+              "    pm.expect(body.success).to.eql(false);",
+              "    pm.expect(body.message).to.be.a('string').and.not.empty;",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "taskId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
