@@ -2,10 +2,12 @@
 import express from 'express';
 import taskRoutes from './routes/task.routes.js';
 import aiRoutes from './routes/ai.routes.js';
+import corsMiddleware from './config/cors.js';
 
 const app = express();
 
 // Middleware
+app.use(corsMiddleware);
 app.use(express.json());
 
 // Mount routes
